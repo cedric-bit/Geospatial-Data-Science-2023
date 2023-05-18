@@ -1,6 +1,22 @@
+import realtime as realtime
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFont, QPixmap
 import sys
+import os
+from datetime import datetime
+import osmnx as ox
+from google.transit import gtfs_realtime_pb2
+from google.protobuf import text_format
+import pandas as pd
+import os
+import zipfile
+import osmium
+import datetime
+import matplotlib.pyplot as plt
+import folium
+import geopandas as gpd
+from shapely.geometry import Point
+
 
 class App(QMainWindow):
     def __init__(self):
@@ -10,8 +26,20 @@ class App(QMainWindow):
         self.top = 124
         self.width = 1600
         self.height = 720
-        self.initUI()
         self.current_date = "30/03/2023"
+        self.path = 'C:\Work\geospatial'
+        self.gtfs_files = []
+        self.gtfsrt_files = []
+        self.gtfs_file_path = ""
+        self.stops_df = []
+        self.stop_times_df = []
+        self.trips_df = []
+        self.routes_df = []
+        self.trip_updates = []
+        self.trip_updates_with_schedule = []
+
+        self.initUI()
+        self.load_data()
 
     def initUI(self):
         """
@@ -52,7 +80,6 @@ class App(QMainWindow):
         self.setLayout(self.hbox)
         self.search_bar.returnPressed.connect(lambda: self.check_stop(self.search_bar))
 
-
         self.average_label = QLabel(self)
         self.average_label.setText("Most delayed trains")
         self.average_label.move(1330, 50)
@@ -86,12 +113,10 @@ class App(QMainWindow):
         # maybe add total delay of each train line and give top delayed line
         print("Delays")
 
-
-    def check_stop(self,search_bar):
-        # checks if the stop name is in the db, for now it only works with "Gare du Nord" write it as it is 
+    def check_stop(self, search_bar):
+        # checks if the stop name is in the db, for now it only works with "Gare du Nord" write it as it is
         self.stop = self.search_bar.text()  # gets text from the search bar
-        self.test_list = ["Gare du Nord"]   # turn this into actual data
-        if self.stop in self.test_list:
+        if self.stop in self.stops_df['stop_id'].values[0]:
             self.show_stop(search_bar)
         else:
             self.search_bar_label.setText("This stop does not exist")
@@ -118,14 +143,14 @@ class App(QMainWindow):
         self.stop_table.setRowCount(10)  # set row count to however many trains passing that day
         self.stop_table.resize(400, 600)
         self.stop_table.move(590, 100)
-        self.stop_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)  # Stretch columns to fill the available space
+        self.stop_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch)  # Stretch columns to fill the available space
 
         self.stop_title = QLabel(self.stop_window)
         self.stop_title.resize(300, 40)
-        self.stop_title.setText(self.search_bar.text())  #Stop name as title
+        self.stop_title.setText(self.search_bar.text())  # Stop name as title
         self.stop_title.setFont(QFont("Arial", 16))
         self.stop_title.move(740, 20)
-
 
         self.stop_window.show()
 
@@ -136,11 +161,101 @@ class App(QMainWindow):
         else:
             self.date.setText("previous date")
 
+    #    ------------------------------------------ Data handling ------------------------------------------
 
+    def load_data(self):
+        self.open_files()
+        self.real_time_gtfs()
+
+    def read_gtfs_static_file(self, file_path):
+        # print(f"Ouverture du fichier {file_path}")
+        with zipfile.ZipFile(file_path, 'r') as z:
+            stops_df = pd.read_csv(z.open('stops.txt'))
+            stop_times_df = pd.read_csv(z.open('stop_times.txt'))
+            trips_df = pd.read_csv(z.open('trips.txt'))
+            routes_df = pd.read_csv(z.open('routes.txt'))
+
+        return stops_df, stop_times_df, trips_df, routes_df
+
+    def open_files(self):
+        for subdir, dirs, files in os.walk(self.path):
+            for file in files:
+                # Vérifiez si le fichier est un fichier GTFS zip
+                self.gtfs_file_path = os.path.join(subdir, file)
+                if file.endswith('.zip'):
+                    self.gtfs_files.append(self.gtfs_file_path)
+                elif file.endswith('.gtfsrt'):
+                    self.gtfsrt_files.append(self.gtfs_file_path)
+        # Utilisez les fonctions pour extraire les informations
+
+        for gtfs_file in self.gtfs_files:
+            self.stops_df, self.stop_times_df, self.trips_df, self.routes_df = self.read_gtfs_static_file(gtfs_file)
+            # Utilisez les DataFrames pour effectuer vos analyses et traitements
+
+    def extract_trip_updates(self, feed_realtime):
+        for entity in feed_realtime.entity:
+            if entity.HasField('trip_update'):
+                trip_update = entity.trip_update
+                trip_id = trip_update.trip.trip_id
+                route_id = trip_update.trip.route_id
+                for stop_time_update in trip_update.stop_time_update:
+                    stop_id = stop_time_update.stop_id
+                    arrival_time = stop_time_update.arrival.time
+                    departure_time = stop_time_update.departure.time
+                    delay = stop_time_update.arrival.delay
+
+                    self.trip_updates.append({
+                        'trip_id': trip_id,
+                        'route_id': route_id,
+                        'stop_id': stop_id,
+                        'arrival_time': arrival_time,
+                        'departure_time': departure_time,
+                        'delay': delay
+                    })
+
+    def process_gtfsrt_file(self, file_path):
+        feed = gtfs_realtime_pb2.FeedMessage()
+
+        try:
+            with open(file_path, 'rb') as f:
+                content = f.read()
+                feed.ParseFromString(content)
+        except Exception as e:
+            # print(f"Erreur lors du traitement du fichier {file_path}: {e}")
+            return None
+
+        return feed
+
+    def merge_trip_updates_and_schedule(self):
+        for update in self.trip_updates:
+            trip_id = update['trip_id']
+            stop_id = update['stop_id']
+
+            stop_time = self.stop_times_df.loc[
+                (self.stop_times_df['trip_id'] == trip_id) & (
+                            self.stop_times_df['stop_id'] == stop_id), 'arrival_time'].values
+            if len(stop_time) > 0:
+                scheduled_arrival_time = stop_time[0]
+
+                self.trip_updates_with_schedule.append({
+                    'trip_id': trip_id,
+                    'route_id': update['route_id'],
+                    'stop_id': stop_id,
+                    'scheduled_arrival_time': scheduled_arrival_time,
+                    'actual_arrival_time': update['arrival_time'],
+                    'delay': update['delay']
+                })
+
+    def real_time_gtfs(self):
+        feed_realtime = self.process_gtfsrt_file(self.gtfsrt_files[0])
+        if feed_realtime is not None:
+            self.extract_trip_updates(feed_realtime)
+            self.merge_trip_updates_and_schedule()
 
 def main():
     app = QApplication(sys.argv)
     App()
     sys.exit(app.exec_())
+
 
 main()
