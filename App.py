@@ -41,10 +41,11 @@ class App(QMainWindow):
         self.routes_df = []
         self.trip_updates = []
         self.trip_updates_with_schedule = []
-        self.file_number = 12
+        self.file_number = 12   # fichier gtfs = 30 mars on peut changer pour 0
         self.time = 0
-
+        self.file_time = []
         self.load_data()
+        self.file_chosen = self.gtfsrt_files[0]
         self.initUI()
 
     def initUI(self):
@@ -89,6 +90,7 @@ class App(QMainWindow):
         self.buttons()
         self.change_day()
         self.show_delays()
+        self.change_time()
 
         self.show()
 
@@ -117,7 +119,7 @@ class App(QMainWindow):
         big_del //= 60
         string = "Biggest delay of today is " + str(big_del) + " minutes on route : " + str(big_del_route)
         self.big_delay.setText(string)
-        self.big_delay.move(10, 100)
+        self.big_delay.move(10, 300)
         self.big_delay.resize(500, 100)
 
     def biggest_delay(self):
@@ -151,9 +153,27 @@ class App(QMainWindow):
 
 
     def change_time(self):
-        # change le temps du fichier gtfs real time
-        self.choose_time = QScrollBar(self) # c est pas le bon truc
+        # change le fichier gtfs real time
+        self.choose_time = QComboBox(self)
+        self.choose_time.move(150, 100)
+        for i in range(0, len(self.gtfsrt_files), 20):
+            epoch_time = self.gtfsrt_files[i].replace(".gtfsrt", "")
+            stringz = "C:\\Work\\geospatial\\" + self.add_path[self.file_number] + "\\"
+            epoch_time = epoch_time.replace(stringz, "")
+            epoch_time = int(epoch_time)
+            epoch_time = time.gmtime(epoch_time)
+            file_time = str(epoch_time[3]) + "H" + str(epoch_time[4])
+            self.file_time.append([self.gtfsrt_files[i], file_time])
+            self.choose_time.addItem(file_time)
 
+        #self.choose_time.activated()
+
+
+    def changing_time(self):
+        for i in range(len(self.file_time)):
+            if self.choose_time.currentText() == self.file_time[i][1]:
+                self.file_chosen = self.file_time[i][0]
+                self.real_time_gtfs()
 
     def new_date(self, modification):
         # move from day to day, get real data instead of "next date" etc
@@ -180,14 +200,14 @@ class App(QMainWindow):
         big_del //= 60
         string = "Biggest delay of today is " + str(big_del) + " minutes on route : " + str(big_del_route)
         self.big_delay.setText(string)
-        self.big_delay.move(10, 100)
+        self.big_delay.move(10, 300)
         self.big_delay.resize(500, 100)
 
     #    ------------------------------------------ Data handling ------------------------------------------
 
     def load_data(self):
         self.open_files()
-        self.real_time_gtfs()
+        self.real_time_gtfs_first()
 
     def read_gtfs_static_file(self, file_path):
         # print(f"Ouverture du fichier {file_path}")
@@ -246,15 +266,26 @@ class App(QMainWindow):
         return feed
 
     def real_time_gtfs(self):
-        feed_realtime = self.process_gtfsrt_file(self.gtfsrt_files[-1])
-        epoch_time = self.gtfsrt_files[-1].replace(".gtfsrt", "")
-        epoch_time = epoch_time.replace("C:\\Work\\geospatial\\2023-03-30\\", "")
+        feed_realtime = self.process_gtfsrt_file(self.file_chosen)
+        epoch_time = self.file_chosen.replace(".gtfsrt", "")
+        stringz = "C:\\Work\\geospatial\\" + self.add_path[self.file_number] + "\\"
+        epoch_time = epoch_time.replace(stringz, "")
         epoch_time = int(epoch_time)
         self.time = time.gmtime(epoch_time)
         if feed_realtime is not None:
             self.extract_trip_updates(feed_realtime)
             # self.merge_trip_updates_and_schedule()
 
+    def real_time_gtfs_first(self):
+        feed_realtime = self.process_gtfsrt_file(self.gtfsrt_files[0])
+        epoch_time = self.gtfsrt_files[0].replace(".gtfsrt", "")
+        stringz = "C:\\Work\\geospatial\\" + self.add_path[self.file_number] + "\\"
+        epoch_time = epoch_time.replace(stringz, "")
+        epoch_time = int(epoch_time)
+        self.time = time.gmtime(epoch_time)
+        if feed_realtime is not None:
+            self.extract_trip_updates(feed_realtime)
+            # self.merge_trip_updates_and_schedule()
 
 def main():
     app = QApplication(sys.argv)
