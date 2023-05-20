@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import folium
 import geopandas as gpd
 from shapely.geometry import Point
+import time
 
 
 class App(QMainWindow):
@@ -41,6 +42,7 @@ class App(QMainWindow):
         self.trip_updates = []
         self.trip_updates_with_schedule = []
         self.file_number = 12
+        self.time = 0
 
         self.load_data()
         self.initUI()
@@ -52,11 +54,6 @@ class App(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
-        #self.search_bar_label = QLabel(self)
-        #self.search_bar_label.setText("  Type stop name to \ncheck train stop times")
-        #self.search_bar_label.move(115, 30)
-        #self.search_bar_label.resize(150, 50)
-        #self.search_bar_label.setFont(QFont("Arial", 10))
 
         mainMenu = self.menuBar()
         exitMenu = mainMenu.addMenu('Quitter')
@@ -75,14 +72,6 @@ class App(QMainWindow):
         self.dash_title.setText("Train stops in belgium")
         self.dash_title.setFont(QFont("Arial", 16))
         self.dash_title.move(700, 20)
-
-        #self.hbox = QHBoxLayout()
-        #self.search_bar = QLineEdit(self)
-        #self.search_bar.resize(200, 20)
-        #self.search_bar.move(75, 75)
-        #self.hbox.addWidget(self.search_bar)
-        #self.setLayout(self.hbox)
-        #self.search_bar.returnPressed.connect(lambda: self.check_stop(self.search_bar))
 
         self.average_label = QLabel(self)
         self.average_label.setText("Most delayed trains")
@@ -114,27 +103,39 @@ class App(QMainWindow):
         # To do : open window with trains moving
         print("Map of trains in brussels")
 
+
+    def five_delays(self):
+        # faire les delays de + de 5 min
+        print("to do")
+
+
+
     def show_delays(self):
-        # To do : get data about delays and show it on the left side of the map
-        # maybe add total delay of each train line and give top delayed line
+        # en gros va falloir faire bcp de fonctions de ce style pour montrer d autres choses style average delay etc
         self.big_delay = QLabel(self)
         big_del, big_del_route = self.biggest_delay()
         big_del //= 60
-        string = "Biggest delay of " + self.add_path[self.file_number] + " is " + str(big_del) + " minutes on route :" + str(big_del_route)
-        print(string)
+        string = "Biggest delay of today is " + str(big_del) + " minutes on route : " + str(big_del_route)
         self.big_delay.setText(string)
-        self.big_delay.move(75, 75)
-        self.big_delay.resize(400, 400)
+        self.big_delay.move(10, 100)
+        self.big_delay.resize(500, 100)
 
     def biggest_delay(self):
         biggest = 0
         route = None
+        x = ""
         for delay in self.trip_updates:
             if delay['delay'] > biggest:
                 biggest = delay['delay']
+                x = delay['trip_id']
                 route = delay['route_id']
 
-        return biggest, route
+        trip = self.trips_df.loc[self.trips_df['trip_id'] == x]
+        trip_route = int(trip['route_id'].iloc[0])
+        route = self.routes_df.loc[self.routes_df['route_id'] == trip_route]
+        route_name = route['route_long_name']
+
+        return biggest, route_name.iloc[0]
 
     def change_day(self):
         # user types stop name, give times of each train passing in this stop, choose date for this aswell
@@ -147,6 +148,12 @@ class App(QMainWindow):
         self.incr_date.move(250, 50)
         self.incr_date.clicked.connect(lambda: self.new_date(1))
         self.decr_date.clicked.connect(lambda: self.new_date(-1))
+
+
+    def change_time(self):
+        # change le temps du fichier gtfs real time
+        self.choose_time = QScrollBar(self) # c est pas le bon truc
+
 
     def new_date(self, modification):
         # move from day to day, get real data instead of "next date" etc
@@ -163,18 +170,18 @@ class App(QMainWindow):
 
         self.date.setText(self.add_path[self.file_number])
         self.path = self.base_path + self.add_path[self.file_number]
+        self.trip_updates = []
         self.open_files()
         self.real_time_gtfs()
         
-        # update le delay parce que un appel a la fonction ca marche pas jsp pk 
+        # update le delay parce qu'un appel a la fonction ca marche pas jsp pk , ne pas delete
+
         big_del, big_del_route = self.biggest_delay()
         big_del //= 60
-        string = "Biggest delay of " + self.add_path[self.file_number] + " is " + str(big_del) + " minutes on route :" + str(big_del_route)
-        print(string)
+        string = "Biggest delay of today is " + str(big_del) + " minutes on route : " + str(big_del_route)
         self.big_delay.setText(string)
-        self.big_delay.move(75, 75)
-        self.big_delay.resize(400, 400)
-
+        self.big_delay.move(10, 100)
+        self.big_delay.resize(500, 100)
 
     #    ------------------------------------------ Data handling ------------------------------------------
 
@@ -206,7 +213,6 @@ class App(QMainWindow):
             # Utilisez les DataFrames pour effectuer vos analyses et traitements
 
     def extract_trip_updates(self, feed_realtime):
-        self.trip_updates = []
         for entity in feed_realtime.entity:
             if entity.HasField('trip_update'):
                 trip_update = entity.trip_update
@@ -239,24 +245,12 @@ class App(QMainWindow):
 
         return feed
 
-    def merge_trip_updates_and_schedule(self):
-        for update in self.trip_updates:
-            trip_id = update['trip_id']
-            stop_id = update['stop_id']
-            stop_time = self.stop_times_df.loc[(self.stop_times_df["trip_id"] == trip_id) & (self.stop_times_df["stop_id"] == stop_id), "arrival_time"].values
-            if len(stop_time) > 0:
-                scheduled_arrival_time = stop_time[0]
-                self.trip_updates_with_schedule.append({
-                    'trip_id': trip_id,
-                    'route_id': update['route_id'],
-                    'stop_id': stop_id,
-                    'scheduled_arrival_time': scheduled_arrival_time,
-                    'actual_arrival_time': update['arrival_time'],
-                    'delay': update['delay']
-                })
-
     def real_time_gtfs(self):
         feed_realtime = self.process_gtfsrt_file(self.gtfsrt_files[-1])
+        epoch_time = self.gtfsrt_files[-1].replace(".gtfsrt", "")
+        epoch_time = epoch_time.replace("C:\\Work\\geospatial\\2023-03-30\\", "")
+        epoch_time = int(epoch_time)
+        self.time = time.gmtime(epoch_time)
         if feed_realtime is not None:
             self.extract_trip_updates(feed_realtime)
             # self.merge_trip_updates_and_schedule()
