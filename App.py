@@ -120,8 +120,9 @@ class App(QMainWindow):
         self.big_delay = QLabel(self)
         big_del, big_del_route = self.biggest_delay()
         big_del //= 60
-
-        self.big_delay.setText("Biggest delay of the day is " + str(big_del) + " minutes on route :" + str(big_del_route))
+        string = "Biggest delay of " + self.add_path[self.file_number] + " is " + str(big_del) + " minutes on route :" + str(big_del_route)
+        print(string)
+        self.big_delay.setText(string)
         self.big_delay.move(75, 75)
         self.big_delay.resize(400, 400)
 
@@ -164,6 +165,16 @@ class App(QMainWindow):
         self.path = self.base_path + self.add_path[self.file_number]
         self.open_files()
         self.real_time_gtfs()
+        
+        # update le delay parce que un appel a la fonction ca marche pas jsp pk 
+        big_del, big_del_route = self.biggest_delay()
+        big_del //= 60
+        string = "Biggest delay of " + self.add_path[self.file_number] + " is " + str(big_del) + " minutes on route :" + str(big_del_route)
+        print(string)
+        self.big_delay.setText(string)
+        self.big_delay.move(75, 75)
+        self.big_delay.resize(400, 400)
+
 
     #    ------------------------------------------ Data handling ------------------------------------------
 
@@ -178,7 +189,6 @@ class App(QMainWindow):
             self.stop_times_df = pd.read_csv(z.open('stop_times.txt'))
             self.trips_df = pd.read_csv(z.open('trips.txt'))
             self.routes_df = pd.read_csv(z.open('routes.txt'))
-
 
     def open_files(self):
         for subdir, dirs, files in os.walk(self.path):
@@ -196,6 +206,7 @@ class App(QMainWindow):
             # Utilisez les DataFrames pour effectuer vos analyses et traitements
 
     def extract_trip_updates(self, feed_realtime):
+        self.trip_updates = []
         for entity in feed_realtime.entity:
             if entity.HasField('trip_update'):
                 trip_update = entity.trip_update
