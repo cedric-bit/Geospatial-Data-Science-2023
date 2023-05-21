@@ -261,13 +261,23 @@ class App(QMainWindow):
         # checks if the stop name is in the db, for now it only works with "Gare du Nord" write it as it is
         self.stop = self.search_bar.text()  # gets text from the search bar
         fix = False
+        self.search_bar_label.setText("Type stop name to check stop information")
         for name in self.stops_df['stop_name']:
             if not fix:
                 if str(name) == self.stop:
+                    stop_data = self.load_stop_data(name)
                     self.show_stop(search_bar)
                     fix = True
+                    
                 else:
                     self.search_bar_label.setText("This stop does not exist")
+        
+        
+    def load_stop_data(self,stop_name):
+        stop_data = self.stops_df.loc[self.stops_df['stop_name'] == stop_name]
+        stops_id = stop_data.loc[:,'stop_id']
+        routes_by_stop = self.stop_times_df.loc[self.stop_times_df['stop_id'].isin(stops_id)]
+        print(routes_by_stop)
 
     def show_stop(self, search_bar):
         # user types stop name, give times of each train passing in this stop, choose date for this aswell
@@ -283,6 +293,9 @@ class App(QMainWindow):
         self.stop_table.resize(400, 600)
         self.stop_table.move(590, 100)
         self.stop_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)  # Stretch columns to fill the available space
+
+
+
 
         self.stop_title = QLabel(self.stop_window)
         self.stop_title.resize(300, 40)
