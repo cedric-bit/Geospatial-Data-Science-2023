@@ -27,7 +27,7 @@ class App(QMainWindow):
         self.top = 124
         self.width = 1600
         self.height = 720
-        self.path = 'C:\Work\geospatial\\2023-03-30'
+        self.path = 'C:\Work\geospatial\\2023-03-18'
         self.base_path = 'C:\Work\geospatial\\'
         self.add_path = ['2023-03-18', '2023-03-19', '2023-03-20', '2023-03-21', '2023-03-22', '2023-03-23',
                         '2023-03-24', '2023-03-25', '2023-03-26', '2023-03-27', '2023-03-28', '2023-03-29',
@@ -41,7 +41,7 @@ class App(QMainWindow):
         self.routes_df = []
         self.trip_updates = []
         self.trip_updates_with_schedule = []
-        self.file_number = 12   # fichier gtfs = 30 mars on peut changer pour 0
+        self.file_number = 0   # fichier gtfs = 30 mars on peut changer pour 0
         self.time = 0
         self.file_time = []
         self.load_data()
@@ -87,37 +87,35 @@ class App(QMainWindow):
         self.table.resize(317, 185)
         self.table.move(1230, 100)
 
+        self.big_delay = QLabel(self)
+
         self.buttons()
+        self.change_time_day()
         self.change_day()
         self.show_delays()
-        self.change_time()
 
         self.show()
 
     def buttons(self):
 
-        self.real_time = QPushButton("moving trains", self)
-        self.real_time.setToolTip('See real movement of trains')
-        self.real_time.move(745, 100)
-        self.real_time.clicked.connect(lambda: self.display_train())
+        self.choose_time = QComboBox(self)
+        self.choose_time.move(150, 100)
 
-    def display_train(self):
-        # To do : open window with trains moving
-        print("Map of trains in brussels")
+        self.update_box = QPushButton("Update time", self)
+        self.update_box.move(120, 200)
+        self.update_box.clicked.connect(lambda: self.changing_time())
 
 
     def five_delays(self):
         # faire les delays de + de 5 min
         print("to do")
 
-
-
     def show_delays(self):
         # en gros va falloir faire bcp de fonctions de ce style pour montrer d autres choses style average delay etc
-        self.big_delay = QLabel(self)
         big_del, big_del_route = self.biggest_delay()
         big_del //= 60
         string = "Biggest delay of today is " + str(big_del) + " minutes on route : " + str(big_del_route)
+        print(string)
         self.big_delay.setText(string)
         self.big_delay.move(10, 300)
         self.big_delay.resize(500, 100)
@@ -139,6 +137,24 @@ class App(QMainWindow):
 
         return biggest, route_name.iloc[0]
 
+    def changing_time(self):
+        self.file_chosen = self.file_time[self.choose_time.currentIndex()][0]
+        self.real_time_gtfs()
+
+    def change_time_day(self):
+        self.choose_time.clear()
+        self.file_time = []
+        for i in range(0, len(self.gtfsrt_files), 20):
+            epoch_time = self.gtfsrt_files[i].replace(".gtfsrt", "")
+            stringz = "C:\\Work\\geospatial\\" + self.add_path[self.file_number] + "\\"
+            epoch_time = epoch_time.replace(stringz, "")
+            epoch_time = int(epoch_time)
+            epoch_time = time.gmtime(epoch_time)
+            file_time = str(epoch_time[3]) + "H" + str(epoch_time[4])
+            self.file_time.append([self.gtfsrt_files[i], file_time])
+            self.choose_time.addItem(file_time)
+
+
     def change_day(self):
         # user types stop name, give times of each train passing in this stop, choose date for this aswell
         self.date = QLabel(self)
@@ -150,30 +166,6 @@ class App(QMainWindow):
         self.incr_date.move(250, 50)
         self.incr_date.clicked.connect(lambda: self.new_date(1))
         self.decr_date.clicked.connect(lambda: self.new_date(-1))
-
-
-    def change_time(self):
-        # change le fichier gtfs real time
-        self.choose_time = QComboBox(self)
-        self.choose_time.move(150, 100)
-        for i in range(0, len(self.gtfsrt_files), 20):
-            epoch_time = self.gtfsrt_files[i].replace(".gtfsrt", "")
-            stringz = "C:\\Work\\geospatial\\" + self.add_path[self.file_number] + "\\"
-            epoch_time = epoch_time.replace(stringz, "")
-            epoch_time = int(epoch_time)
-            epoch_time = time.gmtime(epoch_time)
-            file_time = str(epoch_time[3]) + "H" + str(epoch_time[4])
-            self.file_time.append([self.gtfsrt_files[i], file_time])
-            self.choose_time.addItem(file_time)
-
-        #self.choose_time.activated()
-
-
-    def changing_time(self):
-        for i in range(len(self.file_time)):
-            if self.choose_time.currentText() == self.file_time[i][1]:
-                self.file_chosen = self.file_time[i][0]
-                self.real_time_gtfs()
 
     def new_date(self, modification):
         # move from day to day, get real data instead of "next date" etc
@@ -191,17 +183,12 @@ class App(QMainWindow):
         self.date.setText(self.add_path[self.file_number])
         self.path = self.base_path + self.add_path[self.file_number]
         self.trip_updates = []
+        self.gtfs_files = []
+        self.gtfsrt_files = []
         self.open_files()
-        self.real_time_gtfs()
-        
-        # update le delay parce qu'un appel a la fonction ca marche pas jsp pk , ne pas delete
-
-        big_del, big_del_route = self.biggest_delay()
-        big_del //= 60
-        string = "Biggest delay of today is " + str(big_del) + " minutes on route : " + str(big_del_route)
-        self.big_delay.setText(string)
-        self.big_delay.move(10, 300)
-        self.big_delay.resize(500, 100)
+        self.change_time_day()
+        self.changing_time()
+        self.show_delays()
 
     #    ------------------------------------------ Data handling ------------------------------------------
 
