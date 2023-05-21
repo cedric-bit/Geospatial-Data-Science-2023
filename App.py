@@ -90,6 +90,8 @@ class App(QMainWindow):
         self.line_five_delays_percent = QLabel(self)
         self.line_five_delays_percent_delays = QLabel(self)
 
+        self.canceled = QLabel(self)
+
 
         # ---------------- stop window -------------
 
@@ -116,6 +118,7 @@ class App(QMainWindow):
         self.show_number_delays()
         self.show_five_min_delays()
         self.show_line()
+        self.show_canceled()
 
         self.show()
 
@@ -134,10 +137,20 @@ class App(QMainWindow):
         self.update_line.move(250, 650)
         self.update_line.clicked.connect(lambda: self.change_line())
 
+
+    def show_canceled(self):
+        canceling = 0
+        for train in self.trip_updates:
+            if train['cancel'] == True:
+                canceling += 1
+        self.canceled.setText('There are ' + str(canceling) + ' trains canceled.')
+        self.canceled.move(220, 170)
+        self.canceled.resize(400, 100)
+
     def show_number_delays(self):
         number = 0
         for delay in self.trip_updates:
-            if delay['delay'] > 0:
+            if delay['delay'] > 0 and not delay['cancel']:
                 number += 1
         if number != 0:
             percentage = number/len(self.trip_updates)
@@ -157,10 +170,10 @@ class App(QMainWindow):
         number = 0
         total = 0
         for delay in self.trip_updates:
-            if delay['delay'] >= 300:
+            if delay['delay'] >= 300 and not delay['cancel']:
                 number += 1
                 total += 1
-            elif delay['delay'] > 0:
+            elif delay['delay'] > 0 and not delay['cancel']:
                 total += 1
         if number != 0:
             percentage = number/len(self.trip_updates)
@@ -199,7 +212,7 @@ class App(QMainWindow):
         biggest = 0
         x = ""
         for delay in self.trip_updates:
-            if delay['delay'] > biggest:
+            if delay['delay'] > biggest and not delay['cancel']:
                 biggest = delay['delay']
                 x = delay['trip_id']
         if x != "":
@@ -218,6 +231,7 @@ class App(QMainWindow):
         self.show_delays()
         self.show_number_delays()
         self.show_five_min_delays()
+        self.show_canceled()
 
     def change_time_day(self):
         self.choose_time.clear()
@@ -413,19 +427,30 @@ class App(QMainWindow):
         self.stop_five_delays = QLabel(self.stop_window)
         self.stop_five_delays_percentage = QLabel(self.stop_window)
         self.stop_five_delays_percentage_delays = QLabel(self.stop_window)
+        self.cancel_stop = QLabel(self.stop_window)
 
         stopages = self.load_stop_data(self.search_bar.text())
         self.show_stop_number_delays()
         self.show_biggest_delay()
         self.show_five_stop_delays()
+        self.show_canceled_stop()
 
         self.stop_window.show()
+
+    def show_canceled_stop(self):
+        canceled = 0
+        for cancel in self.trip_updates:
+            if cancel['cancel'] and cancel['stop_id'] == str(self.stop_id):
+                canceled += 1
+        self.cancel_stop.setText("There are " + str(canceled) + " trains canceled.")
+        self.cancel_stop.move(720, 150)
+        self.cancel_stop.resize(200, 100)
 
     def show_stop_number_delays(self):
         number = 0
         total = 0
         for delay in self.trip_updates:
-            if delay['stop_id'] == str(self.stop_id) and delay['delay'] > 0:
+            if delay['stop_id'] == str(self.stop_id) and delay['delay'] > 0 and not delay['cancel']:
                 number += 1
                 total += 1
             elif delay['stop_id'] == str(self.stop_id):
@@ -448,7 +473,7 @@ class App(QMainWindow):
         biggest = 0
         total = ''
         for delay in self.trip_updates:
-            if delay['stop_id'] == str(self.stop_id) and delay['delay'] > biggest:
+            if delay['stop_id'] == str(self.stop_id) and delay['delay'] > biggest and not delay['cancel']:
                 biggest += delay['delay']
                 total = delay['trip_id']
         if total != '':
@@ -468,11 +493,11 @@ class App(QMainWindow):
         total_delayed = 0
         total = 0
         for delay in self.trip_updates:
-            if delay['stop_id'] == str(self.stop_id) and delay['delay'] >= 300:
+            if delay['stop_id'] == str(self.stop_id) and delay['delay'] >= 300 and not delay['cancel']:
                 number += 1
                 total += 1
                 total_delayed += 1
-            elif delay['stop_id'] == str(self.stop_id) and delay['delay'] > 0:
+            elif delay['stop_id'] == str(self.stop_id) and delay['delay'] > 0 and not delay['cancel']:
                 total += 1
                 total_delayed += 1
             elif delay['stop_id'] == str(self.stop_id):
@@ -534,6 +559,9 @@ class App(QMainWindow):
                 trip_update = entity.trip_update
                 trip_id = trip_update.trip.trip_id
                 route_id = trip_update.trip.route_id
+                canceled = False
+                if trip_update.trip.HasField('schedule_relationship'):
+                    canceled = True
                 for stop_time_update in trip_update.stop_time_update:
                     stop_id = stop_time_update.stop_id
                     arrival_time = stop_time_update.arrival.time
@@ -545,7 +573,8 @@ class App(QMainWindow):
                         'stop_id': stop_id,
                         'arrival_time': arrival_time,
                         'departure_time': departure_time,
-                        'delay': delay
+                        'delay': delay,
+                        'cancel': canceled
                     })
 
     def process_gtfsrt_file(self, file_path):
@@ -582,7 +611,6 @@ class App(QMainWindow):
         self.time = time.gmtime(epoch_time)
         if feed_realtime is not None:
             self.extract_trip_updates(feed_realtime)
-            # self.merge_trip_updates_and_schedule()
 
 def main():
     app = QApplication(sys.argv)
