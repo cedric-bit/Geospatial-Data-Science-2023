@@ -25,8 +25,8 @@ class App(QMainWindow):
         self.title = "Dashboard"
         self.left = 150
         self.top = 124
-        self.width = 1600
-        self.height = 720
+        self.width = 1800
+        self.height = 900
         self.path = 'C:\Work\geospatial\\2023-03-18'
         self.base_path = 'C:\Work\geospatial\\'
         self.add_path = ['2023-03-18', '2023-03-19', '2023-03-20', '2023-03-21', '2023-03-22', '2023-03-23',
@@ -41,9 +41,11 @@ class App(QMainWindow):
         self.routes_df = []
         self.trip_updates = []
         self.trip_updates_with_schedule = []
-        self.file_number = 0   # fichier gtfs = 30 mars on peut changer pour 0
+        self.file_number = 0
         self.time = 0
         self.file_time = []
+        self.stop_id = 0
+        self.routes = []
         self.load_data()
         self.file_chosen = self.gtfsrt_files[0]
         self.initUI()
@@ -64,8 +66,8 @@ class App(QMainWindow):
         exitMenu.addAction(exitButton)
 
         self.stops = QLabel(self)
-        self.stops.setPixmap(QPixmap("Train stops.png"))
-        self.stops.resize(800, 700)
+        self.stops.setPixmap(QPixmap("trains.png"))
+        self.stops.resize(1400, 900)
         self.stops.move(820, 10)
 
         self.dash_title = QLabel(self)
@@ -80,6 +82,14 @@ class App(QMainWindow):
         self.five_min = QLabel(self)
         self.five_min_percentage = QLabel(self)
         self.five_min_percentage_delays = QLabel(self)
+
+        self.line_big_delay = QLabel(self)
+        self.line_number_delays = QLabel(self)
+        self.line_five_delays = QLabel(self)
+        self.line_number_delays_percent = QLabel(self)
+        self.line_five_delays_percent = QLabel(self)
+        self.line_five_delays_percent_delays = QLabel(self)
+
 
         # ---------------- stop window -------------
 
@@ -105,6 +115,7 @@ class App(QMainWindow):
         self.show_delays()
         self.show_number_delays()
         self.show_five_min_delays()
+        self.show_line()
 
         self.show()
 
@@ -116,6 +127,13 @@ class App(QMainWindow):
         self.update_box.move(350, 150)
         self.update_box.clicked.connect(lambda: self.changing_time())
 
+        self.show_lines = QComboBox(self)
+        self.update_line = QPushButton("Choose line", self)
+        self.show_lines.move(275, 600)
+        self.show_lines.resize(250, 30)
+        self.update_line.move(350, 650)
+        self.update_line.clicked.connect(lambda: self.change_line())
+
     def show_number_delays(self):
         number = 0
         for delay in self.trip_updates:
@@ -124,11 +142,11 @@ class App(QMainWindow):
         if number != 0:
             percentage = number/len(self.trip_updates)
             percentage *= 100
-            self.number_delays.setText("The number of delayed trains is :" + str(number) + " out of " + str(len(self.trip_updates)) + " trains")
+            self.number_delays.setText("The number of delayed trains is : " + str(number) + " out of " + str(len(self.trip_updates)) + " trains")
             self.number_delays_percentage.setText("( " + str(int(percentage)) + "% ) ")
         else:
             self.number_delays.setText("There are no delayed trains at this time")
-            self.number_delays_percentage.setText("( 0% ) ")
+            self.number_delays_percentage.setText("")
 
         self.number_delays.move(220, 250)
         self.number_delays.resize(300, 100)
@@ -153,7 +171,7 @@ class App(QMainWindow):
             self.five_min_percentage.setText(" of total \n ( " + str(int(percentage)) + "% ) ")
             self.five_min_percentage_delays.setText("of delayed \n ( " + str(int(percentage_delays)) + "% ) ")
         else:
-            self.five_min.setText("There are no delays at this time")
+            self.five_min.setText("There are no delays bigger than 5 minutes at this time")
             self.five_min_percentage.setText("")
             self.five_min_percentage_delays.setText("")
 
@@ -169,7 +187,7 @@ class App(QMainWindow):
         big_del, big_del_route = self.biggest_delay()
         if big_del != 0:
             big_del //= 60
-            string = "Biggest delay of today is " + str(big_del) + " minutes on route : " + str(big_del_route)
+            string = "Biggest delay right now is " + str(big_del) + " minutes on route : " + str(big_del_route)
         else:
             string = "There are no delayed trains at this time"
 
@@ -198,11 +216,8 @@ class App(QMainWindow):
         self.file_chosen = self.file_time[self.choose_time.currentIndex()][0]
         self.real_time_gtfs()
         self.show_delays()
-
         self.show_number_delays()
-
         self.show_five_min_delays()
-
 
     def change_time_day(self):
         self.choose_time.clear()
@@ -216,7 +231,6 @@ class App(QMainWindow):
             file_time = str(epoch_time[3]) + "H" + str(epoch_time[4])
             self.file_time.append([self.gtfsrt_files[i], file_time])
             self.choose_time.addItem(file_time)
-
 
     def change_day(self):
         # user types stop name, give times of each train passing in this stop, choose date for this aswell
@@ -254,30 +268,133 @@ class App(QMainWindow):
         self.show_delays()
         self.show_number_delays()
         self.show_five_min_delays()
+        self.change_line()
+
+    def show_line(self):
+        trips = []
+        for trip in self.trip_updates:
+            if trip['trip_id'] not in trips:
+                trips.append(trip['trip_id'])
+        for i in range(len(trips)):
+            trip = self.trips_df.loc[self.trips_df['trip_id'] == trips[i]]
+            trip_route = int(trip['route_id'].iloc[0])
+            route = self.routes_df.loc[self.routes_df['route_id'] == trip_route]
+            route_name = route['route_long_name']
+            self.show_lines.addItem(route_name.iloc[0])
+
+    def change_line(self):
+        text = self.show_lines.currentText()
+        route = self.routes_df.loc[self.routes_df['route_long_name'] == text]
+        trips = []
+        route = int(route[('route_id')].iloc[0])
+        for i in range(len(self.trips_df)):
+            if route == int(self.trips_df['route_id'].iloc[i]):
+                trips.append(self.trips_df.iloc[i])
+
+        indexes = []
+        for i in range(len(trips)):
+            for j in range(len(self.trip_updates)):
+                if trips[i]['trip_id'] == self.trip_updates[j]['trip_id']:
+                    indexes.append(self.trip_updates[j])
+
+        self.show_line_delays(indexes)
+        self.show_big_line_delay(indexes)
+        self.show_five_line_delay(indexes)
+
+    def show_line_delays(self, indexes):
+        number = 0
+        total = 0
+        for delay in indexes:
+            if delay['delay'] > 0:
+                number += 1
+        if number != 0:
+            percentage = number/len(indexes)
+            percentage *= 100
+            self.line_number_delays.setText("The number of delayed trains is : " + str(number) + " out of " + str(len(indexes)) + " trains")
+            self.line_number_delays_percent.setText("( " + str(int(percentage)) + "% ) ")
+        else:
+            self.line_number_delays.setText("There are no delayed trains at this time")
+            self.line_number_delays_percent.setText("")
+
+        self.line_number_delays.move(220, 750)
+        self.line_number_delays.resize(300, 100)
+        self.line_number_delays_percent.move(500, 750)
+        self.line_number_delays_percent.resize(100, 100)
+
+    def show_big_line_delay(self, indexes):
+        big = 0
+        for delay in indexes:
+            if delay['delay'] > big:
+                big = delay['delay']
+        if big > 0:
+            big = big//60
+            self.line_big_delay.setText("The biggest delay right now is : " + str(big) + " minutes")
+        else:
+            self.line_big_delay.setText("There are no delayed trains at this time")
+
+        self.line_big_delay.move(220, 700)
+        self.line_big_delay.resize(300, 100)
+
+    def show_five_line_delay(self, indexes):
+        number = 0
+        total = 1
+        total_n = 0
+        for delay in indexes:
+            if delay['delay'] > 300:
+                number += 1
+                total += 1
+            elif delay['delay'] > 0:
+                total += 1
+            total_n += 1
+
+        if number != 0:
+            percentage = number/total_n
+            percentage *= 100
+            percentage_delays = number/total
+            percentage_delays *= 100
+            self.line_five_delays.setText("The number of delayed trains is : " + str(number) + " out of " + str(total) + " trains")
+            self.line_five_delays_percent.setText(" of total \n ( " + str(int(percentage)) + "% ) ")
+            self.line_five_delays_percent_delays.setText("of delayed \n ( " + str(int(percentage_delays)) + "% ) ")
+        else:
+            self.line_five_delays.setText("There are no delays over 5 minutes at this time")
+            self.line_five_delays_percent.setText("")
+            self.line_five_delays_percent_delays.setText("")
+
+        self.line_five_delays.move(220, 800)
+        self.line_five_delays.resize(300, 100)
+        self.line_five_delays_percent.move(500, 800)
+        self.line_five_delays_percent.resize(100, 100)
+        self.line_five_delays_percent_delays.move(700, 800)
+        self.line_five_delays_percent_delays.resize(100, 100)
 
     #    ------------------------------------------- Stop window -------------------------------------------
 
     def check_stop(self, search_bar):
-        # checks if the stop name is in the db, for now it only works with "Gare du Nord" write it as it is
-        self.stop = self.search_bar.text()  # gets text from the search bar
+        self.stop = self.search_bar.text()
         fix = False
         self.search_bar_label.setText("Type stop name to check stop information")
         for name in self.stops_df['stop_name']:
             if not fix:
                 if str(name) == self.stop:
-                    stop_data = self.load_stop_data(name)
                     self.show_stop(search_bar)
                     fix = True
-                    
                 else:
                     self.search_bar_label.setText("This stop does not exist")
         
-        
+
     def load_stop_data(self,stop_name):
         stop_data = self.stops_df.loc[self.stops_df['stop_name'] == stop_name]
-        stops_id = stop_data.loc[:,'stop_id']
-        routes_by_stop = self.stop_times_df.loc[self.stop_times_df['stop_id'].isin(stops_id)]
-        print(routes_by_stop)
+        stops_id = stop_data.loc[:, 'stop_id']
+        self.stop_id = stops_id.iloc[-1]
+        self.stop_id = int(self.stop_id)
+        list_stopages = []
+        bruh = self.stop_times_df['stop_id']
+        for i in range(len(self.stop_times_df)):
+            if bruh[i] == self.stop_id:
+                list_stopages.append(self.stop_times_df.iloc[i])
+
+        return list_stopages
+
 
     def show_stop(self, search_bar):
         # user types stop name, give times of each train passing in this stop, choose date for this aswell
@@ -286,26 +403,104 @@ class App(QMainWindow):
         self.stop_window.setWindowTitle("Stop window")
         self.stop_window.setGeometry(self.left, self.top, self.width, self.height)  # probably change these values
 
-        self.stop_table = QTableWidget(self.stop_window)
-        self.stop_table.setColumnCount(3)
-        self.stop_table.setHorizontalHeaderLabels(["Line n°", "Scheduled arrival time", "Delay"])
-        self.stop_table.setRowCount(10)  # set row count to however many trains passing that day
-        self.stop_table.resize(400, 600)
-        self.stop_table.move(590, 100)
-        self.stop_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)  # Stretch columns to fill the available space
-
-
-
-
         self.stop_title = QLabel(self.stop_window)
         self.stop_title.resize(300, 40)
-        self.stop_title.setText(self.search_bar.text())  #Stop name as title
+        self.stop_title.setText(self.search_bar.text())  # Stop name as title
         self.stop_title.setFont(QFont("Arial", 16))
         self.stop_title.move(740, 20)
 
+        self.stop_n_delays = QLabel(self.stop_window)
+        self.stop_n_delays_percentage = QLabel(self.stop_window)
+        self.biggest_delay_stop = QLabel(self.stop_window)
+        self.stop_five_delays = QLabel(self.stop_window)
+        self.stop_five_delays_percentage = QLabel(self.stop_window)
+        self.stop_five_delays_percentage_delays = QLabel(self.stop_window)
+
+        stopages = self.load_stop_data(self.search_bar.text())
+        self.show_stop_number_delays()
+        self.show_biggest_delay()
+        self.show_five_stop_delays()
+
         self.stop_window.show()
 
-    # A faire: load la data du stop pour pouvoir montrer des trucs
+
+    def show_stop_number_delays(self):
+        number = 0
+        total = 0
+        for delay in self.trip_updates:
+            if delay['stop_id'] == str(self.stop_id) and delay['delay'] > 0:
+                number += 1
+                total += 1
+            elif delay['stop_id'] == str(self.stop_id):
+                total += 1
+        if number != 0:
+            percentage = number/total
+            percentage *= 100
+            self.stop_n_delays.setText("The number of delayed trains is : " + str(number) + " out of " + str(total) + " trains")
+            self.stop_n_delays_percentage.setText("( " + str(int(percentage)) + "% ) ")
+        else:
+            self.stop_n_delays.setText("There are no delayed trains at this time")
+            self.stop_n_delays_percentage.setText("( 0% ) ")
+
+        self.stop_n_delays.move(220, 250)
+        self.stop_n_delays.resize(300, 100)
+        self.stop_n_delays_percentage.move(500, 250)
+        self.stop_n_delays_percentage.resize(100, 100)
+
+    def show_biggest_delay(self):
+        biggest = 0
+        total = ''
+        for delay in self.trip_updates:
+            if delay['stop_id'] == str(self.stop_id) and delay['delay'] > biggest:
+                biggest += delay['delay']
+                total = delay['trip_id']
+        if total != '':
+            trip = self.trips_df.loc[self.trips_df['trip_id'] == total]
+            trip_route = int(trip['route_id'].iloc[0])
+            route = self.routes_df.loc[self.routes_df['route_id'] == trip_route]
+            route_name = route['route_long_name']
+            self.biggest_delay_stop.setText("Biggest delay right now is " + str(biggest//60) + " minutes on route " + str(route_name.iloc[0]))
+        else:
+            self.biggest_delay_stop.setText("There are no delayed trains at this time")
+
+        self.biggest_delay_stop.move(220, 200)
+        self.biggest_delay_stop.resize(400, 100)
+
+    def show_five_stop_delays(self):
+        number = 0
+        total_delayed = 0
+        total = 0
+        for delay in self.trip_updates:
+            if delay['stop_id'] == str(self.stop_id) and delay['delay'] >= 300:
+                number += 1
+                total += 1
+                total_delayed += 1
+            elif delay['stop_id'] == str(self.stop_id) and delay['delay'] > 0:
+                total += 1
+                total_delayed += 1
+            elif delay['stop_id'] == str(self.stop_id):
+                total += 1
+
+        if number != 0:
+            percentage = number / total
+            percentage *= 100
+            percentage_delays = number / total_delayed
+            percentage_delays *= 100
+            self.stop_five_delays.setText("\n" + str(number) + " trains are delayed by more than 5 minutes")
+            self.stop_five_delays_percentage.setText(" of total \n ( " + str(int(percentage)) + "% ) ")
+            self.stop_five_delays_percentage_delays.setText("of delayed \n ( " + str(int(percentage_delays)) + "% ) ")
+        else:
+            self.stop_five_delays.setText("There are no delays bigger than 5 minutes at this time")
+            self.stop_five_delays_percentage.setText("")
+            self.stop_five_delays_percentage_delays.setText("")
+
+        self.stop_five_delays.move(220, 290)
+        self.stop_five_delays.resize(300, 100)
+        self.stop_five_delays_percentage.move(510, 290)
+        self.stop_five_delays_percentage.resize(100, 100)
+        self.stop_five_delays_percentage_delays.move(450, 290)
+        self.stop_five_delays_percentage_delays.resize(100, 100)
+
 
     #    ------------------------------------------ Data handling ------------------------------------------
 
