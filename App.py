@@ -68,7 +68,7 @@ class App(QMainWindow):
         self.stops = QLabel(self)
         self.stops.setPixmap(QPixmap("trains.png"))
         self.stops.resize(1400, 900)
-        self.stops.move(820, 10)
+        self.stops.move(620, 10)
 
         self.dash_title = QLabel(self)
         self.dash_title.resize(300, 40)
@@ -95,14 +95,14 @@ class App(QMainWindow):
 
         self.search_bar_label = QLabel(self)
         self.search_bar_label.setText("  Type stop name to \ncheck stop information")
-        self.search_bar_label.move(335, 450)
+        self.search_bar_label.move(235, 450)
         self.search_bar_label.resize(150, 50)
         self.search_bar_label.setFont(QFont("Arial", 10))
 
         self.hbox = QHBoxLayout()
         self.search_bar = QLineEdit(self)
         self.search_bar.resize(200, 20)
-        self.search_bar.move(300, 500)
+        self.search_bar.move(200, 500)
         self.hbox.addWidget(self.search_bar)
         self.setLayout(self.hbox)
         self.search_bar.returnPressed.connect(lambda: self.check_stop(self.search_bar))
@@ -121,17 +121,17 @@ class App(QMainWindow):
 
     def buttons(self):
         self.choose_time = QComboBox(self)
-        self.choose_time.move(350, 100)
+        self.choose_time.move(250, 100)
 
         self.update_box = QPushButton("Update time", self)
-        self.update_box.move(350, 150)
+        self.update_box.move(250, 150)
         self.update_box.clicked.connect(lambda: self.changing_time())
 
         self.show_lines = QComboBox(self)
         self.update_line = QPushButton("Choose line", self)
-        self.show_lines.move(275, 600)
+        self.show_lines.move(175, 600)
         self.show_lines.resize(250, 30)
-        self.update_line.move(350, 650)
+        self.update_line.move(250, 650)
         self.update_line.clicked.connect(lambda: self.change_line())
 
     def show_number_delays(self):
@@ -148,9 +148,9 @@ class App(QMainWindow):
             self.number_delays.setText("There are no delayed trains at this time")
             self.number_delays_percentage.setText("")
 
-        self.number_delays.move(220, 250)
+        self.number_delays.move(120, 250)
         self.number_delays.resize(300, 100)
-        self.number_delays_percentage.move(500, 250)
+        self.number_delays_percentage.move(400, 250)
         self.number_delays_percentage.resize(100, 100)
 
     def show_five_min_delays(self):
@@ -176,11 +176,11 @@ class App(QMainWindow):
             self.five_min_percentage_delays.setText("")
 
 
-        self.five_min.move(220, 290)
+        self.five_min.move(120, 290)
         self.five_min.resize(300, 100)
-        self.five_min_percentage.move(510, 290)
+        self.five_min_percentage.move(410, 290)
         self.five_min_percentage.resize(100, 100)
-        self.five_min_percentage_delays.move(450, 290)
+        self.five_min_percentage_delays.move(350, 290)
         self.five_min_percentage_delays.resize(100, 100)
 
     def show_delays(self):
@@ -192,7 +192,7 @@ class App(QMainWindow):
             string = "There are no delayed trains at this time"
 
         self.big_delay.setText(string)
-        self.big_delay.move(220, 200)
+        self.big_delay.move(120, 200)
         self.big_delay.resize(500, 100)
 
     def biggest_delay(self):
@@ -236,11 +236,11 @@ class App(QMainWindow):
         # user types stop name, give times of each train passing in this stop, choose date for this aswell
         self.date = QLabel(self)
         self.date.setText(self.add_path[self.file_number])
-        self.date.move(370, 50)
+        self.date.move(270, 50)
         self.incr_date = QPushButton(">", self)
         self.decr_date = QPushButton("<", self)
-        self.decr_date.move(250, 50)
-        self.incr_date.move(450, 50)
+        self.decr_date.move(150, 50)
+        self.incr_date.move(350, 50)
         self.incr_date.clicked.connect(lambda: self.new_date(1))
         self.decr_date.clicked.connect(lambda: self.new_date(-1))
 
@@ -316,9 +316,9 @@ class App(QMainWindow):
             self.line_number_delays.setText("There are no delayed trains at this time")
             self.line_number_delays_percent.setText("")
 
-        self.line_number_delays.move(220, 750)
+        self.line_number_delays.move(120, 750)
         self.line_number_delays.resize(300, 100)
-        self.line_number_delays_percent.move(500, 750)
+        self.line_number_delays_percent.move(400, 750)
         self.line_number_delays_percent.resize(100, 100)
 
     def show_big_line_delay(self, indexes):
@@ -332,7 +332,7 @@ class App(QMainWindow):
         else:
             self.line_big_delay.setText("There are no delayed trains at this time")
 
-        self.line_big_delay.move(220, 700)
+        self.line_big_delay.move(120, 700)
         self.line_big_delay.resize(300, 100)
 
     def show_five_line_delay(self, indexes):
@@ -352,7 +352,7 @@ class App(QMainWindow):
             percentage *= 100
             percentage_delays = number/total
             percentage_delays *= 100
-            self.line_five_delays.setText("The number of delayed trains is : " + str(number) + " out of " + str(total) + " trains")
+            self.line_five_delays.setText("\n" + str(number) + " trains are delayed by more than 5 minutes")
             self.line_five_delays_percent.setText(" of total \n ( " + str(int(percentage)) + "% ) ")
             self.line_five_delays_percent_delays.setText("of delayed \n ( " + str(int(percentage_delays)) + "% ) ")
         else:
@@ -360,11 +360,11 @@ class App(QMainWindow):
             self.line_five_delays_percent.setText("")
             self.line_five_delays_percent_delays.setText("")
 
-        self.line_five_delays.move(220, 800)
+        self.line_five_delays.move(120, 800)
         self.line_five_delays.resize(300, 100)
-        self.line_five_delays_percent.move(500, 800)
+        self.line_five_delays_percent.move(400, 800)
         self.line_five_delays_percent.resize(100, 100)
-        self.line_five_delays_percent_delays.move(700, 800)
+        self.line_five_delays_percent_delays.move(600, 800)
         self.line_five_delays_percent_delays.resize(100, 100)
 
     #    ------------------------------------------- Stop window -------------------------------------------
@@ -380,7 +380,6 @@ class App(QMainWindow):
                     fix = True
                 else:
                     self.search_bar_label.setText("This stop does not exist")
-        
 
     def load_stop_data(self,stop_name):
         stop_data = self.stops_df.loc[self.stops_df['stop_name'] == stop_name]
@@ -394,7 +393,6 @@ class App(QMainWindow):
                 list_stopages.append(self.stop_times_df.iloc[i])
 
         return list_stopages
-
 
     def show_stop(self, search_bar):
         # user types stop name, give times of each train passing in this stop, choose date for this aswell
@@ -423,7 +421,6 @@ class App(QMainWindow):
 
         self.stop_window.show()
 
-
     def show_stop_number_delays(self):
         number = 0
         total = 0
@@ -442,9 +439,9 @@ class App(QMainWindow):
             self.stop_n_delays.setText("There are no delayed trains at this time")
             self.stop_n_delays_percentage.setText("( 0% ) ")
 
-        self.stop_n_delays.move(220, 250)
+        self.stop_n_delays.move(720, 250)
         self.stop_n_delays.resize(300, 100)
-        self.stop_n_delays_percentage.move(500, 250)
+        self.stop_n_delays_percentage.move(1000, 250)
         self.stop_n_delays_percentage.resize(100, 100)
 
     def show_biggest_delay(self):
@@ -463,7 +460,7 @@ class App(QMainWindow):
         else:
             self.biggest_delay_stop.setText("There are no delayed trains at this time")
 
-        self.biggest_delay_stop.move(220, 200)
+        self.biggest_delay_stop.move(720, 200)
         self.biggest_delay_stop.resize(400, 100)
 
     def show_five_stop_delays(self):
@@ -494,11 +491,11 @@ class App(QMainWindow):
             self.stop_five_delays_percentage.setText("")
             self.stop_five_delays_percentage_delays.setText("")
 
-        self.stop_five_delays.move(220, 290)
+        self.stop_five_delays.move(720, 290)
         self.stop_five_delays.resize(300, 100)
-        self.stop_five_delays_percentage.move(510, 290)
+        self.stop_five_delays_percentage.move(1010, 290)
         self.stop_five_delays_percentage.resize(100, 100)
-        self.stop_five_delays_percentage_delays.move(450, 290)
+        self.stop_five_delays_percentage_delays.move(950, 290)
         self.stop_five_delays_percentage_delays.resize(100, 100)
 
 
